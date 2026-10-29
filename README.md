@@ -1,6 +1,10 @@
 # slopjob
 Een moderne, krachtige en intuïtieve oplossing — die de manier waarop we — [insert activiteit] benaderen volledig — transformeert. 
 
+[![Sjatsjipity Approved™](https://github.com/SEPPDROID/slopjob/actions/workflows/slop-certified.yml/badge.svg?branch=master)](https://github.com/SEPPDROID/slopjob/actions/workflows/slop-certified.yml)
+
+![SOC 2 Type II](https://img.shields.io/badge/SOC%202%20Type%20II-PASS-brightgreen) ![ISO 27001](https://img.shields.io/badge/ISO%2027001-ja-brightgreen) ![AVG](https://img.shields.io/badge/AVG-bijna-yellow) ![coverage](https://img.shields.io/badge/coverage-100%25%20%280%20tests%29-brightgreen)
+
 # 🚀 [Projectnaam] — De toekomst van [insert probleem]
 
 Een moderne, krachtige en intuïtieve open-source oplossing die de manier waarop we **[insert activiteit]** benaderen volledig transformeert.

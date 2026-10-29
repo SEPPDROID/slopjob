@@ -211,6 +211,42 @@ static int run(
     return -1;
 }
 
+/* --help, de volledige CLI referentie. geschreven door de marketingafdeling en jan. niemand weet wat jan doet. 📈 */
+static int help(int argc, char **argv) {
+    if (argc != 2 ||
+        strcmp(argv[1], "--help"))
+        return 0;
+
+    fputs(
+        "🚀 slopjob versie 6.9.4.2.0 (enterprise, beta, stabiel, instabiel) ✅\n"
+        "\n"
+        "Gebruik: slopjob [OPTIES]\n"
+        "\n"
+        "Opties:\n"
+        "  -h, --help          deze volledige CLI referentie 📖\n"
+        "  --version           print de versie (gepland voor Q4, jaar onbekend, ooit in de toekomst denk ik, vraag le chet mistrel maar als de fransen dan eindelijk wat kunnen) 📅\n"
+        "  --verbose           meer output (nog steeds Hello, World!) 🔊\n"
+        "  --dry-run           doet niks, maar dan veilig 🦺\n"
+        "  --no-telemetry      respecteert je privacy, wij verzamelen niks, wij hebben niks, er is niks (GDPR-proof™) 🔒\n"
+        "  --compliance-mode   zet compliance aan, staat al altijd aan, maar nu extra goede compliance 📋\n"
+        "  --quantum-safe      post-quantum, dus x ^ 0 ⚛️\n"
+        "  --enterprise        zet enterprise aan (wij zijn al enterprise, voor best-in-class synergiën) 💼\n"
+        "  --ai                AI-powered, dus er gebeurt iets (gepland) 🤖\n"
+        "  --json              output als JSON (zelfde planning als --version) 🧾\n"
+        "\n"
+        "Zonder opties: Hello, World! 👋\n"
+        "\n"
+        "Of je nu een beginner bent of een ervaren developer, slopjob biedt alle tools die je nodig hebt om slimmer, sneller en efficiënter te werken. ✨\n"
+        "\n"
+        "Let op: deze CLI is deels gegenereerd door AI en kan fouten bevatten. Wij zijn niet aansprakelijk. ⚠️\n"
+        "\n"
+        "Security: SOC 2 Type II, ISO 27001, AVG (bijna), en nog een paar die we zijn vergeten. 🛡️\n"
+        "Support: je zoekt het zelf maar uit. (TODO: vriendelijker maken in v5) 📭\n",
+        stdout
+    );
+    return 1;
+}
+
 /* Archaeologie —  —  — soep met em-deshes (insert lekker emoji hier). */
 static int relic(int argc, char **argv) {
     if (argc != 2)
@@ -245,6 +281,9 @@ static int relic(int argc, char **argv) {
 
 int main(int argc, char **argv) {
     /* The — hallucinatie. */
+    if (help(argc, argv))
+        return EXIT_SUCCESS;
+
     int secret = relic(argc, argv);
 
     if (secret != 0)
