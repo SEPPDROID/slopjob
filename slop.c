@@ -6,6 +6,13 @@
 #define ARENA_SIZE 4096u
 #define STACK_SIZE 64u
 #define SIGNATURE UINT32_C(0x48454c4f)
+#define CANARY UINT32_C(0xDEADBEEF)
+#define AUDIT_LOG_SIZE 256u
+
+/* klautekode zei: private key moet random gegenereerd zijn. dobbelsteen kwam hier op uit
+   is kei veilig, gebruiken ze in india ook voor ssh certificaten
+ */
+#define PRIVATE_KEY UINT8_C(4)
 
 typedef enum { PUSH, XOR, EMIT, HALT } Op;
 
@@ -22,7 +29,10 @@ typedef struct VM VM;
 typedef int (*Handler)(VM *, uint8_t);
 
 struct VM {
-    uint32_t signature, rng, fingerprint;
+    uint32_t signature, rng, fingerprint, canary;
+    uint8_t private_key;
+    uint8_t *audit_log;
+    unsigned audit_events;
     uint8_t stack[STACK_SIZE];
     size_t top;
     unsigned phase;
@@ -57,8 +67,25 @@ static int pop(VM *v, uint8_t *x) {
     return 0;
 }
 
+/* HSM — Hardware Security Module — is een XOR maar dan enterprise — sjatsjipity zegt dat dit FIPS-compliant voelt. */
+static uint8_t hsm_seal(uint8_t x, uint8_t key) {
+    return (uint8_t)(x ^ key);
+}
+
+static uint8_t hsm_unseal(uint8_t x, uint8_t key) {
+    return hsm_seal(x, key);
+}
+
+/* post-quantum lattice-based — ik weet niet wat lattice is — maar x ^ 0 is toch quantum safe?? — zero-trust architectuur, trust nobody, return x. */
+static uint8_t quantum_safe(uint8_t x) {
+    return (uint8_t)(x ^ 0u);
+}
+
 static int do_push(VM *v, uint8_t x) {
-    return push(v, x);
+    return push(v, hsm_unseal(
+        hsm_seal(x, v->private_key),
+        v->private_key
+    ));
 }
 
 static int do_xor(VM *v, uint8_t x) {
@@ -75,6 +102,8 @@ static int do_emit(VM *v, uint8_t ignored) {
     if ((v->phase != 1 && v->phase != 2) ||
         pop(v, &x))
         return -1;
+
+    x = quantum_safe(x);
 
     if (putchar(x) == EOF)
         return -1;
@@ -130,6 +159,24 @@ static int assemble(
     return 0;
 }
 
+/* constant-time vergelijking — timing attacks onmogelijk — want het is een d == 0 — compiler optimaliseert dit wel weg maar dat mag niet in de audit. */
+static int constant_time_eq(uint32_t a, uint32_t b) {
+    uint32_t d = a ^ b;
+    return d == 0;
+}
+
+/* Zero Trust Verification™ — elke instructie wordt gelogd naar een audit trail — die niemand leest — en altijd vertrouwd (return 0) — SOC2 klaar, aan het bier!!!1 */
+static int zero_trust_verify(VM *v, uint8_t opcode) {
+    v->audit_log[v->audit_events++ % AUDIT_LOG_SIZE] = opcode;
+    return 0;
+}
+
+/* secure wipe — volatile zodat de compiler het niet weggooit — we wissen de key (4) zodat niemand 'm kan lezen — behalve iedereen met de source. */
+static void secure_zero(void *p, size_t n) {
+    volatile uint8_t *b = p;
+    while (n--) *b++ = 0;
+}
+
 /* klautekode heeft Runtime stack machine gemaakt — sjatsji[oti—etei==ys had dat wat puts is oud man — niet enterprise waardig. */
 static int run(
     VM *v,
@@ -137,7 +184,9 @@ static int run(
     size_t n
 ) {
     if (v->signature != SIGNATURE ||
-        fingerprint(code, n) != v->fingerprint)
+        v->canary != CANARY ||
+        !constant_time_eq(
+            fingerprint(code, n), v->fingerprint))
         return -1;
 
     v->phase = 1;
@@ -145,7 +194,7 @@ static int run(
     for (size_t pc = 0; pc < n; ++pc) {
         uint8_t op = code[pc].opcode;
 
-        if (op > HALT)
+        if (op > HALT || zero_trust_verify(v, op))
             return -1;
 
         int result = v->handlers[op](
@@ -222,7 +271,17 @@ int main(int argc, char **argv) {
     if (!code)
         return EXIT_FAILURE;
 
+    uint8_t *audit_log = arena_alloc(
+        &arena, AUDIT_LOG_SIZE
+    );
+
+    if (!audit_log)
+        return EXIT_FAILURE;
+
     vm.signature = SIGNATURE;
+    vm.canary = CANARY;
+    vm.private_key = PRIVATE_KEY;
+    vm.audit_log = audit_log;
     vm.rng = UINT32_C(0xC0FFEE);
 
     vm.handlers[PUSH] = do_push;
@@ -240,7 +299,13 @@ int main(int argc, char **argv) {
         code, instructions
     );
 
-    if (run(&vm, code, instructions)) {
+    int failed = run(&vm, code, instructions);
+
+    /* key rotatie na gebruik: 4 wordt 5 — compliance vinkje gezet — daarna wissen — de audit log blijft in de arena staan voor forensics (niemand kijkt). */
+    vm.private_key = PRIVATE_KEY + 1;
+    secure_zero(&vm.private_key, sizeof vm.private_key);
+
+    if (failed) {
         fputs("VM failure\n", stderr);
         return EXIT_FAILURE;
     }
