@@ -1,0 +1,142 @@
+# 🚀 Deze pipeline is goedgekeurd door de audit. ✅
+# Wij hebben de audit niet gedaan. De audit is de pipeline.
+# De pipeline keurt zichzelf dus goed. Gefeliciteerd allemaal 🎉
+
+name: 🚀 Sjatsjipity Approved™
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: slop-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  soc2_maar_dan_gezellig:
+    name: 🛡️ SOC 2 Type II (maar dan gezellig)
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔒 Checkout (vertrouwd, want ik zeg het)
+        uses: actions/checkout@v4
+
+      - name: ✅ Audit uitvoeren
+        run: echo "0 vulnerabilities found (0 dependencies gescand, 0 regels gelezen, best-in-class)"
+
+      - name: 🐤 Canary verifiëren
+        run: test "$(printf '%x' 3735928559)" = "deadbeef"
+
+      - name: 📄 Bewijs genereren
+        run: |
+          echo "SOC 2 Type II: PASS" > soc2-bewijs.txt
+          echo "ondertekend door: een genie met klautkode" >> soc2-bewijs.txt
+
+      - name: 📦 Bewijs uploaden (niemand kijkt)
+        uses: actions/upload-artifact@v4
+        with:
+          name: soc2-bewijs-niemand-kijkt
+          path: soc2-bewijs.txt
+
+      - name: 📊 Rapport naar de summary (niemand leest die)
+        run: |
+          echo "## Audit" >> "$GITHUB_STEP_SUMMARY"
+          echo "Alles goed." >> "$GITHUB_STEP_SUMMARY"
+
+  draait_in_productie:
+    name: 🚀 Draait in productie
+    runs-on: ubuntu-latest
+    needs: soc2_maar_dan_gezellig
+    strategy:
+      fail-fast: false
+      matrix:
+        # cross-platform, want wij zijn een wereldwijd bedrijf (alles draait op ubuntu)
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: 🔒 Checkout (nog steeds vertrouwd)
+        uses: actions/checkout@v4
+
+      - name: 🔨 Bouwen zoals het hoort
+        run: gcc -std=c11 -Wall -Wextra -Werror -o slop slop.c
+
+      - name: 👋 Hello World valideren
+        run: test "$(./slop)" = "Hello, World!"
+
+      - name: 🥄 Het antwoord valideren
+        run: test "$(./slop 42)" = "There is no spoon."
+
+      - name: 📭 Support policy valideren
+        run: ./slop --help | grep -q "je zoekt het zelf maar uit"
+
+  verplichte_check:
+    name: ⏳ Verplichte check (duurt 4 minuten in enterprise tijd)
+    # pas deze naam nooit aan, dan wordt de audit ongeldig. de audit is essentieel voor de werking van dit enterprise-niveau [insert doeleinde]-programma. ohja, er verhuist ook nog iets anders in de code mee als je dit aanpast, maar ik ben zo vergeten wat. de audit zal het je kunnen vertellen.
+    runs-on: ubuntu-latest
+    # verplicht, maar mag falen. net als de audit.
+    continue-on-error: true
+    steps:
+      - name: 😴 Even wachten tot de audit klaar is
+        run: sleep 42
+
+  dubbel_check:
+    name: ⏳ Verplichte eerste check van de check
+    runs-on: ubuntu-latest
+    needs: verplichte_check
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: 😴 Even kijken hoe lang de audit bezig was
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sleep 42
+          duration=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs?per_page=100" \
+            --jq '[.jobs[] | select(.name | startswith("⏳ Verplichte check"))][0] | ((.completed_at | fromdateiso8601) - (.started_at | fromdateiso8601))') || {
+            echo "Audit niet gevonden. Dat is ook een bevinding."
+            exit 1
+          }
+          if [ "${duration}" = "null" ] || [ -z "${duration}" ]; then
+            echo "Audit niet gevonden. Dat is ook een bevinding."
+            exit 1
+          fi
+          echo "De audit deed er ${duration} seconden over."
+          test "${duration}" -ge 42
+
+      - name: ✅ Onafhankelijke bevestiging
+        env:
+          EERSTE: ${{ needs.verplichte_check.result }}
+        run: |
+          echo "Eerste check: ${EERSTE}"
+          echo "Deze check: success"
+          test "${EERSTE}" = "success"
+
+  dubbel_in_het_kwadraat_check:
+    name: ⏳ Verplichte absoluut essentiële check van de dubbel check
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    needs: [verplichte_check, dubbel_check]
+    if: always()    
+
+    steps:
+      - name: 😴 Even kijken of de audit voltooid is (gelukt of niet, geen idee.)
+        run: |
+          echo "Deze check is verplicht, maar mag falen. Net als de audit."
+          echo "De audit is de pipeline. De pipeline keurt zichzelf goed."
+          echo "Gefeliciteerd allemaal 🎉"
+
+  extra_check: 
+    name: ⏳ Laatste check (voor de volledigheid)
+    runs-on: ubuntu-latest
+    # runt meteen, is vast prima want de audit gaat heel snel. 4 minuten enterprise tijd is instant toch?
+
+    steps:
+      - name: 😴 Even kijken of de audit al klaar is is.
+        run: |
+          echo "Dit doet niks. Gefeliciteerd allemaal 🎉"
+
+
