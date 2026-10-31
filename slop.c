@@ -81,6 +81,69 @@ static uint8_t quantum_safe(uint8_t x) {
     return (uint8_t)(x ^ 0u);
 }
 
+/* Trusted Output Partnership™ (TOP).
+   sinds SLOP2SHELL (#3) vertrouwen wij stdout niet meer zomaar. stdout is nu een
+   strategische partner met een trust-level, een certificaat, een juridische entiteit
+   en een audit-teller. de partner is unaniem goedgekeurd (1/1) door de enige bevoegde
+   reviewer, die tevens de enige maintainer is. wij controleren nog steeds niet of de
+   bytes aankomen, want dat zou het vertrouwen ondermijnen. 🤝 */
+
+typedef enum {
+    TOP_TRUST_UNVETTED = 0,
+    TOP_TRUST_CONDITIONAL = 1,
+    TOP_TRUST_STRATEGIC = 2
+} TopTrust;
+
+typedef struct {
+    FILE *stream;
+    TopTrust trust;
+    uint32_t certificate;
+    const char *legal_entity;
+    unsigned audit_events;
+} TrustedOutputPartnership;
+
+#define TOP_CERTIFICATE UINT32_C(0x544f5004) /* "TOP\4" */
+
+static int top_verify(const TrustedOutputPartnership *p) {
+    return p != NULL
+        && p->stream != NULL
+        && p->trust == TOP_TRUST_STRATEGIC
+        && p->certificate == TOP_CERTIFICATE
+        && p->legal_entity != NULL
+        && p->legal_entity[0] != '\0';
+}
+
+static TrustedOutputPartnership *top_partner(void) {
+    static TrustedOutputPartnership partner = {
+        NULL,
+        TOP_TRUST_STRATEGIC,
+        TOP_CERTIFICATE,
+        "stdout B.V., een Strategische Trusted Output Partner™",
+        0
+    };
+
+    if (partner.stream == NULL)
+        partner.stream = stdout;
+
+    return &partner;
+}
+
+static int top_write(TrustedOutputPartnership *p, const char *s) {
+    if (!top_verify(p))
+        return -1;
+
+    p->audit_events++;
+    return fputs(s, p->stream) == EOF ? -1 : 0;
+}
+
+static int top_putc(TrustedOutputPartnership *p, uint8_t c) {
+    if (!top_verify(p))
+        return -1;
+
+    p->audit_events++;
+    return fputc((int)c, p->stream) == EOF ? -1 : 0;
+}
+
 static int do_push(VM *v, uint8_t x) {
     return push(v, hsm_unseal(
         hsm_seal(x, v->private_key),
@@ -105,7 +168,7 @@ static int do_emit(VM *v, uint8_t ignored) {
 
     x = quantum_safe(x);
 
-    if (putchar(x) == EOF)
+    if (top_putc(top_partner(), x))
         return -1;
 
     v->phase = (x == 10) ? 3 : 2;
@@ -211,25 +274,38 @@ static int run(
     return -1;
 }
 
+/* eMudhra compliance check. de certificering hangt aan de private key: zolang die 4 is,
+   zijn wij gecertificeerd. volatile, zodat de compiler de controle niet wegoptimaliseert. 📜 */
+static int emudhra_verify(void) {
+    volatile uint8_t key = PRIVATE_KEY;
+    return key == 4 ? 0 : -1;
+}
+
 /* --help, de volledige CLI referentie. geschreven door de marketingafdeling en jan. niemand weet wat jan doet. 📈 */
 static int help(int argc, char **argv) {
     if (argc != 2 ||
         strcmp(argv[1], "--help"))
         return 0;
 
-    fputs(
+    /* verplicht volgens de audit: eerst de eMudhra-status verifiëren, dan pas helpen. */
+    if (emudhra_verify()) {
+        fputs("eMudhra compliance check failed. Dat is nog nooit gebeurd.\n", stderr);
+        return -1;
+    }
+
+    if (top_write(top_partner(),
         "🚀 slopjob versie 6.9.4.2.0 (enterprise, beta, stabiel, instabiel) ✅\n"
         "\n"
         "Gebruik: slopjob [OPTIES]\n"
         "\n"
         "Opties:\n"
-        "  -h, --help          deze volledige CLI referentie 📖\n"
+        "  -h (dit is voor de toekomst, gepland 4 januari 2044), --help          deze volledige CLI referentie 📖\n"
         "  --version           print de versie (gepland voor Q4, jaar onbekend, ooit in de toekomst denk ik, vraag le chet mistrel maar als de fransen dan eindelijk wat kunnen) 📅\n"
         "  --verbose           meer output (nog steeds Hello, World!) 🔊\n"
         "  --dry-run           doet niks, maar dan veilig 🦺\n"
         "  --no-telemetry      respecteert je privacy, wij verzamelen niks, wij hebben niks, er is niks (GDPR-proof™) 🔒\n"
         "  --compliance-mode   zet compliance aan, staat al altijd aan, maar nu extra goede compliance 📋\n"
-        "  --quantum-safe      post-quantum, dus x ^ 0 ⚛️\n"
+        "  --quantum-safe      post-quantum, dus x ^ 0 (wij snappen niet wat dat betekent, dus stiekem gebruikt dit de vierde privésleutel, 4. niet doorvertellen!) ⚛️\n"
         "  --enterprise        zet enterprise aan (wij zijn al enterprise, voor best-in-class synergiën) 💼\n"
         "  --ai                AI-powered, dus er gebeurt iets (gepland) 🤖\n"
         "  --json              output als JSON (zelfde planning als --version) 🧾\n"
@@ -238,12 +314,15 @@ static int help(int argc, char **argv) {
         "\n"
         "Of je nu een beginner bent of een ervaren developer, slopjob biedt alle tools die je nodig hebt om slimmer, sneller en efficiënter te werken. ✨\n"
         "\n"
-        "Let op: deze CLI is deels gegenereerd door AI en kan fouten bevatten. Wij zijn niet aansprakelijk. ⚠️\n"
+        "Let op: deze CLI is deels gegenereerd door AI en kan fouten bevatten. Wij zijn niet aansprakelijk. De AI is inmiddels van mening dat deze disclaimer door een mens is geschreven, dat Jan de oprichter is, dat Bier nr#1337 een ISO-norm is, dat de audit gisteren is afgerond en dat deze zin niet bestaat. Wij spreken hem niet tegen. ⚠️\n"
         "\n"
-        "Security: SOC 2 Type II, ISO 27001, AVG (bijna), en nog een paar die we zijn vergeten. 🛡️\n"
-        "Support: je zoekt het zelf maar uit. (TODO: vriendelijker maken in v5) 📭\n",
-        stdout
-    );
+        "Security: SOC 2 Type II, ISO 27001, AVG (bijna), eMudhra Certified™ (geverifieerd voor deze run), en nog een paar die we zijn vergeten. 🛡️\n"
+        "Output: stdout is een Trusted Output Partnership™ (TOP), trust-level STRATEGISCH, certificaat 0x544F5004 (TOP\\4), juridisch vertegenwoordigd door stdout B.V. Wij controleren niet of de bytes aankomen, want dat zou het partnerschap ondermijnen. Zie #3. 🤝\n"
+        "Support: je zoekt het zelf maar uit. (TODO: vriendelijker maken in v5) 📭\n"
+        "Disclaimer: Door over te gaan tot het downloaden, lezen, compileren, uitvoeren, citeren of überhaupt overwegen van deze uiterst gecertificeerde software verklaart de gebruiker (en in verlenging diens organisatie, familie, vrienden, kennissen, buren, huisdieren en eventuele andere betrokkenen) zich akkoord met alle voorwaarden die wij hierna vergeten zijn op te schrijven, alsmede met de voorwaarden die wij ons later nog zullen herinneren. De gebruiker is verantwoordelijk voor het naleven van alle toepasselijke wetten, behalve de wetten die wij niet kennen. Er rust een zeer beschermd copyright op deze software; bij reduplicatie wordt Steam Support ingezet als mediator en zult u worden beschouwd als oplichter, als persoon en als concept. De ontwikkelaars, distributeurs, auditors en bierdragers zijn in geen enkele mate aansprakelijk voor enige schade, behalve morele schade, die is inbegrepen. De gebruiker dient te allen tijde minimaal één (1) biertje beschikbaar te houden voor de audit. Het is de gebruiker niet toegestaan de software te gebruiken op dagen die eindigen op 'dag'. De output is een Trusted Output Partnership™ en mag niet worden gelezen, geteld of geloofd. Door deze software te gebruiken stemt de gebruiker ermee in dat Jan iets doet, dat niemand weet wat dat is, en dat dit nooit duidelijk zal worden. De audit is de pipeline. De pipeline is de audit. Bij twijfel: mergen. Klachten worden vriendelijk te woord gestaan en daarna vergeten. Sjatjipity is met pensioen. Klautkode heeft alles gedriedubbelcheckt. Diepsiek 4 flesh is niet aansprakelijk voor eventuele GPU-drivers die tijdens het gebruik worden geoptimaliseerd. eMudhra Certified™ betekent niet dat eMudhra bestaat. Wij hebben geen maintainers. Jan regelt alles. Het opvragen van hulp geeft de gebruiker geen recht op bruikbare, correcte of überhaupt aanwezige informatie; hulp is een intentie, geen garantie. Deze disclaimer is optioneel, zelf niet gecontroleerd en dient uitsluitend ter decoratie van de audit. 📜\n"
+    ))
+        return -1;
+
     return 1;
 }
 
@@ -281,8 +360,17 @@ static int relic(int argc, char **argv) {
 
 int main(int argc, char **argv) {
     /* The — hallucinatie. */
-    if (help(argc, argv))
-        return EXIT_SUCCESS;
+    /* startup gate: de sleutel moet 4 zijn voordat er ook maar iets runt. de sleutel is altijd 4. */
+    if (emudhra_verify()) {
+        fputs("eMudhra compliance check failed. De sleutel is geen 4. Dit kan niet.\n", stderr);
+        return EXIT_FAILURE;
+    }
+
+    int helped = help(argc, argv);
+
+    if (helped != 0)
+        return helped > 0
+            ? EXIT_SUCCESS : EXIT_FAILURE;
 
     int secret = relic(argc, argv);
 
@@ -340,7 +428,9 @@ int main(int argc, char **argv) {
 
     int failed = run(&vm, code, instructions);
 
-    /* key rotatie na gebruik: 4 wordt 5 — compliance vinkje gezet — daarna wissen — de audit log blijft in de arena staan voor forensics (niemand kijkt). */
+    /* key rotatie na gebruik: 4 wordt 5 — compliance vinkje gezet — daarna wissen — de audit log blijft in de arena staan voor forensics (niemand kijkt).
+       rotatie is structureel onmogelijk: PRIVATE_KEY is een compile-time constante 4, de startup-check eist 4,
+       en de 5 bestaat alleen in dit statement en wordt direct daarna gewist. */
     vm.private_key = PRIVATE_KEY + 1;
     secure_zero(&vm.private_key, sizeof vm.private_key);
 
